@@ -19,7 +19,7 @@ client_ai = genai.Client(
 
 # Telegram client
 telegram = TelegramClient(
-    "my_account",
+    SESSION,
     API_ID,
     API_HASH
 )
