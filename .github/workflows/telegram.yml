@@ -1,4 +1,11 @@
 name: Telegram AI Assistant
+env:
+     API_ID: ${{ secrets.API_ID }}
+     API_HASH: ${{ secrets.API_HASH }}
+     TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
+     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+run: python personal_ai.py
 
 on:
   workflow_dispatch:
