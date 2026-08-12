@@ -9,7 +9,7 @@ from telethon.sessions import StringSession
 
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-SESSION_STRING = os.getenv("TELEGRAM_SESSION")
+SESSION = os.getenv("TELEGRAM_SESSION")
 
 
 # ==========================
