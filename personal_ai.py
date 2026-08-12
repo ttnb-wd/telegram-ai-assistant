@@ -1,34 +1,57 @@
 import os
 from telethon import TelegramClient, events
 from google import genai
+from telethon.sessions import StringSession
 
+# ==========================
+# Telegram Secrets
+# ==========================
 
-# Telegram secrets
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
-SESSION = os.getenv("TELEGRAM_SESSION")
+SESSION_STRING = os.getenv("TELEGRAM_SESSION")
 
 
-# Gemini
+# ==========================
+# Gemini AI
+# ==========================
+
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+
+if not GEMINI_KEY:
+    raise ValueError("Missing GEMINI_API_KEY secret")
+
 
 client_ai = genai.Client(
     api_key=GEMINI_KEY
 )
 
 
-# Telegram client
+# ==========================
+# Telegram Client
+# ==========================
+
 telegram = TelegramClient(
-    SESSION,
+    StringSession(SESSION),
     API_ID,
     API_HASH
 )
 
 
+# ==========================
+# Message Handler
+# ==========================
+
 @telegram.on(events.NewMessage)
 async def handler(event):
 
+    # Ignore my own messages
+    if event.out:
+        return
+
+
     message = event.message.message
+
 
     if not message:
         return
@@ -48,24 +71,37 @@ async def handler(event):
         reply = response.text
 
 
+        if not reply:
+            reply = "I cannot generate a response."
+
+
         await event.reply(reply)
+
 
         print("AI:", reply)
 
 
     except Exception as e:
 
-        print(e)
+        print("ERROR:", e)
+
 
         await event.reply(
-            "Error: " + str(e)
+            "AI Error: " + str(e)
         )
 
 
+# ==========================
+# Start Bot
+# ==========================
 
 print("AI Assistant Started...")
 
 
 telegram.start()
+
+
+print("Telegram Connected!")
+
 
 telegram.run_until_disconnected()
