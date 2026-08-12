@@ -1,14 +1,10 @@
-name: Metro AI Memory Backup
+name: Backup Memory
 
 on:
-
   schedule:
-
     - cron: "0 */6 * * *"
 
-
   workflow_dispatch:
-
 
 
 jobs:
@@ -20,41 +16,23 @@ jobs:
 
     steps:
 
-
     - name: Checkout
-
       uses: actions/checkout@v4
 
 
-
     - name: Setup Python
-
       uses: actions/setup-python@v5
-
       with:
-
         python-version: "3.12"
 
 
-
-    - name: Install packages
-
-      run: |
-
-        pip install -r requirements.txt
-
-
-
     - name: Run backup
-
-      env:
-
-        API_ID: ${{ secrets.API_ID }}
-
-        API_HASH: ${{ secrets.API_HASH }}
-
-        TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
-
-      run:
-
+      run: |
         python backup.py
+
+
+    - name: Upload backup
+      uses: actions/upload-artifact@v4
+      with:
+        name: memory-backup
+        path: backups/
