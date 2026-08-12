@@ -1,128 +1,71 @@
 import os
-import asyncio
-import random
-
 from telethon import TelegramClient, events
-from telethon.sessions import StringSession
+from google import genai
 
 
-# ==============================
-# Load secrets from GitHub
-# ==============================
-
-API_ID = int(os.environ["API_ID"])
-API_HASH = os.environ["API_HASH"]
-SESSION = os.environ["TELEGRAM_SESSION"]
+# Telegram secrets
+API_ID = int(os.getenv("API_ID"))
+API_HASH = os.getenv("API_HASH")
+SESSION = os.getenv("TELEGRAM_SESSION")
 
 
-# ==============================
-# Telegram Client
-# ==============================
+# Gemini
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
-client = TelegramClient(
-    StringSession(SESSION),
+client_ai = genai.Client(
+    api_key=GEMINI_KEY
+)
+
+
+# Telegram client
+telegram = TelegramClient(
+    "my_account",
     API_ID,
     API_HASH
 )
 
 
-# ==============================
-# Load personality
-# ==============================
-
-def load_personality():
-    try:
-        with open("personality.txt", "r", encoding="utf-8") as f:
-            return f.read()
-    except:
-        return """
-You are a friendly Telegram assistant.
-Speak casually.
-Use Myanmar language when possible.
-"""
-
-
-PERSONALITY = load_personality()
-
-
-# ==============================
-# Simple AI reply (temporary)
-# Later we replace this with real AI
-# ==============================
-
-def generate_reply(message):
-
-    text = message.lower()
-
-    if "hi" in text or "hello" in text:
-        return "ဟေး 😂 ဘာလုပ်နေလဲ?"
-
-    if "နေကောင်း" in text:
-        return "အေး နေကောင်းပါတယ် 😆 မင်းကော?"
-
-    if "ဘယ်မှာ" in text:
-        return "သူအခုမရှိသေးဘူးဟာ 😂 ခဏစောင့်ပေးဦး"
-
-    if "အတင်း" in text:
-        return "အော် 😂 ပြောလေ နားထောင်နေတယ်"
-
-    return (
-        "အေးဟာ 😂 ခဏလေးနော် "
-        "သူအခုမရှိသေးဘူး။ "
-        "ဘာပြောထားပေးရမလဲ?"
-    )
-
-
-# ==============================
-# Message handler
-# ==============================
-
-@client.on(events.NewMessage(incoming=True))
+@telegram.on(events.NewMessage)
 async def handler(event):
-
-    # only private chats
-    if not event.is_private:
-        return
-
-
-    sender = await event.get_sender()
-
-    name = sender.first_name or "friend"
 
     message = event.message.message
 
-
-    print(
-        f"Message from {name}: {message}"
-    )
+    if not message:
+        return
 
 
-    # human delay
-    await asyncio.sleep(
-        random.randint(3, 8)
-    )
+    print("User:", message)
 
 
-    reply = generate_reply(message)
+    try:
+
+        response = client_ai.models.generate_content(
+            model="gemini-flash-latest",
+            contents=message
+        )
 
 
-    await event.respond(reply)
+        reply = response.text
 
 
-# ==============================
-# Start
-# ==============================
+        await event.reply(reply)
 
-async def main():
-
-    print("AI Assistant is running...")
-
-    await client.start()
-
-    await client.run_until_disconnected()
+        print("AI:", reply)
 
 
+    except Exception as e:
 
-if __name__ == "__main__":
+        print(e)
 
-    asyncio.run(main())
+        await event.reply(
+            "Error: " + str(e)
+        )
+
+
+
+print("AI Assistant Started...")
+
+
+telegram.start()
+
+telegram.run_until_disconnected()
