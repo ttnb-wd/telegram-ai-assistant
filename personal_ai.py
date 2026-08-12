@@ -1,4 +1,5 @@
 import os
+import time
 
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
@@ -56,15 +57,68 @@ telegram = TelegramClient(
 
 
 # ==========================
-# Message Handler
+# AI Control System
+# ==========================
+
+# store owner's last message time
+owner_activity = {}
+
+
+# 5 minutes
+WAIT_TIME = 300
+
+
+
+# ==========================
+# Detect Owner Messages
+# ==========================
+
+@telegram.on(events.NewMessage(outgoing=True))
+async def owner_message(event):
+
+    chat_id = event.chat_id
+
+    owner_activity[chat_id] = time.time()
+
+
+    print(
+        "Owner is chatting with:",
+        chat_id
+    )
+
+
+
+# ==========================
+# AI Message Handler
 # ==========================
 
 @telegram.on(events.NewMessage(incoming=True))
 async def handler(event):
 
-    # Ignore my own messages
+
     if event.out:
         return
+
+
+    chat_id = event.chat_id
+
+
+    # Check if owner recently talked
+    if chat_id in owner_activity:
+
+
+        elapsed = time.time() - owner_activity[chat_id]
+
+
+        if elapsed < WAIT_TIME:
+
+
+            print(
+                "Owner is active. AI waiting..."
+            )
+
+            return
+
 
 
     message = event.message.message
@@ -74,73 +128,93 @@ async def handler(event):
         return
 
 
+
     print("\nUser:")
     print(message)
 
 
+
     try:
 
+
         response = client_ai.models.generate_content(
+
             model="gemini-flash-latest",
+
             contents=f"""
-You are a personal Telegram assistant for the owner of this account.
 
-Your job:
-- Talk like a close personal assistant, not like an AI chatbot.
+You are a personal Telegram assistant for the owner.
+
+Your personality:
+
+- You are like a close personal assistant.
+- Not a chatbot.
 - Reply naturally like a human friend.
-- Always answer in Burmese.
-- Do not say "I am an AI".
-- Do not explain limitations too much.
-- Be casual, friendly and helpful.
+- Always use Burmese language.
+- Be casual and friendly.
+- Never say "I am an AI".
 
-You know the owner personally.
-If someone asks about the owner:
-- Answer naturally.
-- If you don't know the exact situation, make a reasonable casual guess.
-- You can say things like:
-  "အခုတော့ မရှိသေးဘူးထင်တယ်"
-  "ဒီနေ့ schedule ကြည့်ရင် နည်းနည်းအလုပ်များနေတယ်"
-  "လိုရင် သတိပေးပေးလိုက်မယ်"
+When people ask about the owner:
 
-Conversation style:
-- Like a close friend helping manage the owner's messages.
-- Not formal customer support.
+Answer naturally.
+
+Examples:
+
+User:
+သူဘာလုပ်နေလဲ
+
+Good answer:
+အခုတော့ မရှိသေးဘူးထင်တယ် 😅
+ဒီနေ့ schedule ကြည့်ရင် နည်းနည်းအလုပ်များနေတယ်။
+လိုရင် message ထားပေးလိုက်မယ်နော်။
 
 
 User message:
+
 {message}
+
 """
+
         )
 
 
         reply = response.text
 
 
+
         if not reply:
-            reply = "တောင်းပန်ပါတယ်။ အဖြေမထုတ်နိုင်ပါ။"
+
+            reply = "အခုတော့ အဖြေမထုတ်နိုင်သေးဘူးနော်။"
+
 
 
         await event.reply(reply)
+
 
 
         print("\nAI:")
         print(reply)
 
 
+
     except Exception as e:
+
 
         print("\nERROR:")
         print(e)
 
 
+
         await event.reply(
-            "AI Error ဖြစ်နေပါတယ်: " + str(e)
+            "တစ်ခုခု error ဖြစ်နေပါတယ်။"
         )
 
 
+
 # ==========================
-# Start Bot
+# Start Assistant
 # ==========================
+
 
 print("🤖 Myanmar AI Assistant Starting...")
 
@@ -149,7 +223,7 @@ telegram.start()
 
 
 print("✅ Telegram Connected!")
-print("✅ AI Assistant is Running...")
+print("✅ AI Assistant Running!")
 
 
 telegram.run_until_disconnected()
