@@ -1,6 +1,7 @@
 import os
 import zipfile
 from datetime import datetime
+import asyncio
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
@@ -89,5 +90,9 @@ async def main():
 
 
 
-with telegram:
-    telegram.loop.run_until_complete(main())
+
+
+
+if __name__ == "__main__":
+
+    asyncio.run(main())
