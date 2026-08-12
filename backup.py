@@ -1,98 +1,34 @@
+import shutil
 import os
-import zipfile
 from datetime import datetime
-import asyncio
-
-from telethon import TelegramClient
-from telethon.sessions import StringSession
 
 
-# ==========================
-# Telegram Secrets
-# ==========================
-
-API_ID = int(os.getenv("API_ID"))
-API_HASH = os.getenv("API_HASH")
-SESSION = os.getenv("TELEGRAM_SESSION")
-
-
-# ==========================
-# Backup File
-# ==========================
-
-DATABASE = "memory.db"
+SOURCE = "memory.db"
+BACKUP_FOLDER = "backups"
 
 
 def create_backup():
 
-    filename = (
-        f"memory_backup_"
-        f"{datetime.now().strftime('%Y-%m-%d_%H-%M')}.zip"
+    if not os.path.exists(BACKUP_FOLDER):
+        os.makedirs(BACKUP_FOLDER)
+
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    backup_file = f"{BACKUP_FOLDER}/memory_{timestamp}.db"
+
+
+    shutil.copy(
+        SOURCE,
+        backup_file
     )
 
 
-    with zipfile.ZipFile(
-        filename,
-        "w"
-    ) as zipf:
-
-        zipf.write(
-            DATABASE
-        )
-
-
-    return filename
-
-
-
-async def main():
-
-    backup_file = create_backup()
-
-
-    telegram = TelegramClient(
-        StringSession(SESSION),
-        API_ID,
-        API_HASH
-    )
-
-
-    await telegram.start()
-
-
-    me = await telegram.get_me()
-
-
-    print(
-        "Connected:",
-        me.first_name
-    )
-
-
-    await telegram.send_file(
-        "me",
-        backup_file,
-        caption=
-        "🤖 Metro AI Memory Backup\n"
-        +
-        datetime.now().strftime(
-            "%Y-%m-%d %H:%M"
-        )
-    )
-
-
-    print(
-        "Backup sent successfully"
-    )
-
-
-    await telegram.disconnect()
-
-
-
+    print("Backup created:")
+    print(backup_file)
 
 
 
 if __name__ == "__main__":
 
-    asyncio.run(main())
+    create_backup()
