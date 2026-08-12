@@ -1,10 +1,30 @@
 import os
+import json
 import time
 
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
 from google import genai
+
+from memory import (
+    create_database,
+    save_message,
+    get_history
+)
+
+
+# ==========================
+# Load JSON Data
+# ==========================
+
+with open("owner.json", "r", encoding="utf-8") as f:
+    owner = json.load(f)
+
+
+with open("personality.json", "r", encoding="utf-8") as f:
+    personality = json.load(f)
+
 
 
 # ==========================
@@ -17,32 +37,44 @@ SESSION = os.getenv("TELEGRAM_SESSION")
 
 
 if not API_ID:
-    raise ValueError("Missing API_ID secret")
+    raise ValueError("Missing API_ID")
+
 
 if not API_HASH:
-    raise ValueError("Missing API_HASH secret")
+    raise ValueError("Missing API_HASH")
+
 
 if not SESSION:
-    raise ValueError("Missing TELEGRAM_SESSION secret")
+    raise ValueError("Missing TELEGRAM_SESSION")
 
 
 API_ID = int(API_ID)
 
 
+
 # ==========================
-# Gemini AI
+# Gemini
 # ==========================
 
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
 
 if not GEMINI_KEY:
-    raise ValueError("Missing GEMINI_API_KEY secret")
+    raise ValueError("Missing GEMINI_API_KEY")
 
 
-client_ai = genai.Client(
+ai = genai.Client(
     api_key=GEMINI_KEY
 )
+
+
+
+# ==========================
+# Database
+# ==========================
+
+create_database()
+
 
 
 # ==========================
@@ -56,65 +88,53 @@ telegram = TelegramClient(
 )
 
 
+
 # ==========================
-# AI Control System
+# Owner Activity
 # ==========================
 
-# store owner's last message time
 owner_activity = {}
 
-
-# 5 minutes
 WAIT_TIME = 300
 
 
 
 # ==========================
-# Detect Owner Messages
+# Detect Owner Message
 # ==========================
 
 @telegram.on(events.NewMessage(outgoing=True))
 async def owner_message(event):
 
-    chat_id = event.chat_id
-
-    owner_activity[chat_id] = time.time()
-
-
-    print(
-        "Owner is chatting with:",
-        chat_id
-    )
+    owner_activity[event.chat_id] = time.time()
 
 
 
 # ==========================
-# AI Message Handler
+# AI Handler
 # ==========================
 
 @telegram.on(events.NewMessage(incoming=True))
 async def handler(event):
 
 
+    chat_id = event.chat_id
+
+
+    # Ignore owner messages
     if event.out:
         return
 
 
-    chat_id = event.chat_id
 
-
-    # Check if owner recently talked
+    # Owner recently chatting
     if chat_id in owner_activity:
 
 
-        elapsed = time.time() - owner_activity[chat_id]
-
-
-        if elapsed < WAIT_TIME:
-
+        if time.time() - owner_activity[chat_id] < WAIT_TIME:
 
             print(
-                "Owner is active. AI waiting..."
+                "Owner active. AI sleeping..."
             )
 
             return
@@ -129,44 +149,88 @@ async def handler(event):
 
 
 
-    print("\nUser:")
+    print("\nUSER:")
     print(message)
 
 
 
-    try:
+    # Save user message
+
+    save_message(
+        chat_id,
+        "user",
+        message
+    )
 
 
-        response = client_ai.models.generate_content(
 
-            model="gemini-flash-latest",
+    # Load history
 
-            contents=f"""
+    history = get_history(
+        chat_id,
+        10
+    )
 
-You are a personal Telegram assistant for the owner.
+
+    history_text = ""
+
+
+    for role, text in history:
+
+        history_text += (
+            f"{role}: {text}\n"
+        )
+
+
+
+    prompt = f"""
+
+You are Metro AI.
+
+
+Owner:
+
+Name:
+{owner["name"]}
+
+
+Owner personality:
+
+{owner["personality"]}
+
+
+Owner speaking style:
+
+{owner["speaking_style"]}
+
+
 
 Your personality:
 
-- You are like a close personal assistant.
-- Not a chatbot.
-- Reply naturally like a human friend.
-- Always use Burmese language.
-- Be casual and friendly.
-- Never say "I am an AI".
+{personality["style"]}
 
-When people ask about the owner:
+Rules:
 
-Answer naturally.
+{personality["rules"]}
 
-Examples:
 
-User:
-သူဘာလုပ်နေလဲ
 
-Good answer:
-အခုတော့ မရှိသေးဘူးထင်တယ် 😅
-ဒီနေ့ schedule ကြည့်ရင် နည်းနည်းအလုပ်များနေတယ်။
-လိုရင် message ထားပေးလိုက်မယ်နော်။
+Conversation memory:
+
+{history_text}
+
+
+
+Instructions:
+
+- Reply in Burmese mixed English naturally.
+- Talk like a close friend.
+- Do not sound like an AI.
+- Do not say you are AI.
+- Be casual.
+- Use humor sometimes.
+- If asked about owner, answer naturally.
+
 
 
 User message:
@@ -174,6 +238,17 @@ User message:
 {message}
 
 """
+
+
+
+    try:
+
+
+        response = ai.models.generate_content(
+
+            model="gemini-flash-latest",
+
+            contents=prompt
 
         )
 
@@ -184,11 +259,19 @@ User message:
 
         if not reply:
 
-            reply = "အခုတော့ အဖြေမထုတ်နိုင်သေးဘူးနော်။"
+            reply = "ခဏနော် 😅"
 
 
 
         await event.reply(reply)
+
+
+
+        save_message(
+            chat_id,
+            "assistant",
+            reply
+        )
 
 
 
@@ -200,30 +283,33 @@ User message:
     except Exception as e:
 
 
-        print("\nERROR:")
-        print(e)
-
-
-
-        await event.reply(
-            "တစ်ခုခု error ဖြစ်နေပါတယ်။"
+        print(
+            "ERROR:",
+            e
         )
 
 
 
 # ==========================
-# Start Assistant
+# Start
 # ==========================
 
-
-print("🤖 Myanmar AI Assistant Starting...")
+print(
+    "🤖 Metro AI Starting..."
+)
 
 
 telegram.start()
 
 
-print("✅ Telegram Connected!")
-print("✅ AI Assistant Running!")
+print(
+    "✅ Telegram Connected"
+)
+
+
+print(
+    "✅ Memory System Active"
+)
 
 
 telegram.run_until_disconnected()
