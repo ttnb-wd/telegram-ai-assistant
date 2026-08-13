@@ -100,6 +100,9 @@ async def owner_message(event):
         flush=True
     )
 
+@telegram.on(events.Raw)
+async def debug_update(event):
+    print("📩 TELEGRAM UPDATE RECEIVED:", type(event).__name__, flush=True)
 
 # ==========================
 # Incoming Message Handler
